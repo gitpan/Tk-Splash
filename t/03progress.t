@@ -1,63 +1,49 @@
-#!/usr/bin/perl -w
 # -*- perl -*-
 
-#
-# $Id: 03progress.t,v 1.1 2001/11/25 13:33:54 eserte Exp $
-# Author: Slaven Rezic
-#
-
 use strict;
-use vars qw($loaded $splash $top);
-
-BEGIN { $| = 1; $^W = 0; print "1..3\n"; }
-END {print "not ok 1\n" unless $loaded;}
 
 BEGIN {
-    require Tk::ProgressSplash;
-    $loaded = 1;
-    print "ok 1\n";
-}
-
-sub findINC
-{
- my $file = join('/',@_);
- my $dir;
- $file  =~ s,::,/,g;
- foreach $dir (@INC)
-  {
-   my $path;
-   return $path if (-e ($path = "$dir/$file"));
-  }
- return undef;
-}
-
-BEGIN {
-    $splash = Tk::ProgressSplash->Show(-splashtype => 'fast',
-				       findINC("Tk", "Xcamel.gif"),
-				       60, 60, "Splash");
-    print "ok 2\n";
+    if (!eval q{
+	use Test::More;
+	1;
+    }) {
+	print "# tests only work with installed Test::More module\n";
+	print "1..1\n";
+	print "ok 1\n";
+	exit;
+    }
 }
 
 use Tk;
 
-$splash->Update(0.1);
-$top=tkinit;
-$splash->Update(0.2); $top->after(300);
-$top->update;
-$splash->Raise;
-$splash->Update(0.4); $top->after(300);
-$splash->Update(0.8); $top->after(300);
+plan tests => 3;
 
-$splash->Destroy;
-print "ok 3\n";
+require_ok 'Tk::ProgressSplash';
 
-$splash = Tk::ProgressSplash->Show(-splashtype => 'normal',
-				   findINC("Tk", "Xcamel.gif"),
-				   60, 60, "Splash");
-$splash->Update(0.2); $top->after(300);
-$splash->Update(0.4); $top->after(300);
-$splash->Update(0.8); $top->after(300);
-$splash->Destroy;
+my $skip_tests;
 
-$top->update;
-sleep 1;
+my $splash = eval {
+    Tk::ProgressSplash->Show(-splashtype => 'normal',
+			     Tk::findINC("Tk", "Xcamel.gif"),
+			     60, 60, "Splash", 1);
+};
+if ($@ =~ m{couldn't connect to display}) {
+    $skip_tests = 1;
+}
+
+SKIP: {
+    skip "No display?", 2 if $skip_tests;
+
+    ok $splash;
+
+    $splash->Update(0.1);
+    my $top = tkinit;
+    $splash->Update(0.2); $top->after(300);
+    $top->update;
+    $splash->Raise;
+    $splash->Update(0.4); $top->after(300);
+    $splash->Update(0.8); $top->after(300);
+
+    $splash->Destroy;
+    ok !Tk::Exists($splash), 'splash window destroyed';
+}
